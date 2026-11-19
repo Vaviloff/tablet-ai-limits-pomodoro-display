@@ -1,0 +1,42 @@
+# Debloat list for Huawei MediaPad T3 7 (BG2-U01, EMUI 5 / Android 7.0).
+# Format: "<method> <package>"   method = disable | uninstall
+#   disable   -> pm disable-user --user 0   (undo: pm enable <pkg>)  <- used for everything here
+#   uninstall -> pm uninstall -k --user 0   (undo needs a tap: Android 7.0 has no
+#                `pm install-existing`; restore.sh opens the installer prompt instead)
+# See PLAN.md for the reason behind each entry.
+
+# --- Google apps (unused on a dashboard/RSS tablet) ---
+disable   com.google.android.googlequicksearchbox   # Google app, 46 MB resident keep-alive; home search bar goes away
+disable   com.google.android.youtube
+disable   com.google.android.apps.maps
+disable   com.google.android.apps.photos
+disable   com.google.android.apps.docs              # Drive
+disable   com.google.android.apps.tachyon           # Duo
+disable   com.google.android.gm                     # Gmail
+disable   com.google.android.music                  # Play Music
+disable   com.google.android.videos                 # Play Movies
+disable   com.google.android.marvin.talkback
+disable   com.google.android.feedback
+disable   com.google.android.printservice.recommendation
+
+# --- Huawei / OEM extras ---
+disable   com.huawei.android.totemweather           # weather+clock widget, always running
+disable   com.huawei.android.hwouc                  # OTA updater, 2 resident processes (device is EOL)
+disable   com.huawei.himovie                        # Huawei Video
+disable   com.android.mediacenter                   # Huawei Music
+disable   com.huawei.KoBackup                       # Huawei Backup
+disable   com.huawei.kidsmode.kidspaint
+disable   com.huawei.android.wfdft                  # MirrorShare / Wi-Fi Display
+disable   com.android.email
+disable   com.android.exchange
+disable   com.example.android.notepad               # Huawei Notepad
+disable   com.android.soundrecorder
+disable   com.android.dreams.phototable             # photo screensaver
+disable   com.opera.preinstall                      # Opera preinstall stub
+disable   com.android.partnerbrowsercustomizations.tmobile  # Chrome partner homepage, wakes with Chrome
+disable   com.touchtype.swiftkey                    # inactive keyboard (Gboard is the active one)
+disable   com.swiftkey.swiftkeyconfigurator
+
+# --- Huawei telemetry / log collectors (system uid, resident) ---
+disable   com.huawei.imonitor                         # log collection, ~14 MB resident
+disable   com.huawei.android.cochr                    # CHR call/network logging, persistent ~7 MB
