@@ -42,5 +42,8 @@
 - Hardware video decoders: H.264 and VP8 only (`OMX.sprd.*`). VP9 and HEVC are software-only, so YouTube's default VP9 stutters above roughly 480p.
 - **NewPipe** (F-Droid 0.29.3, installed with `adb install`, hash checked against F-Droid's index-v2). Default format MPEG-4 (H.264), default resolution 720p. Verified on Big Buck Bunny: `OMX.sprd.h264.decoder`, NewPipe at about 21 % CPU, no dropped frames logged.
 - **RedReader** (F-Droid 1.27) for Reddit: a native client, light on RAM. Its login page runs in the system WebView.
+- **Readrops** (F-Droid 2.1.1, Android 5+) for FreshRSS via the Google Reader API. Read You, Capy Reader and Feeder need Android 8+, 11+ and 10+.
+- TLS: native apps trust only Android 7.0's own CA store, which lacks ISRG Root X1/X2 (Let's Encrypt). Servers behind Cloudflare (Google Trust Services chained to GlobalSign Root CA, e.g. the TT-RSS and FreshRSS hosts) work. Direct Let's Encrypt hosts fail in apps.
+- Play Store login looped with Play services 23.24 (2023): `BadAuthentication` / "Long live credential not available". Sideloading Play services 26.45.31 (variant 040300, armeabi-v7a, API 24+, signed by Google) fixed it. Play Store then installed Chrome 101.
 - The system WebView provider is Chrome (`webview_provider=com.android.chrome`); the standalone WebView 64 is disabled. Updating Chrome therefore updates WebView for every app. Chrome 119 is the last version for Android 7.
 - Play Store needs the Google account re-authenticated before it will update anything.
