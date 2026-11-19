@@ -37,3 +37,10 @@
 - `scripts/setup-tablet.sh` applies the reverse, keep-awake on USB (`svc power stayon usb`), landscape lock and zero animations, then opens the page. `--no-open` skips opening the page.
 - The home-screen icon "Limits" was added via Chrome "Add to Home screen". It runs in Chrome's WebappActivity, fullscreen, with no system bars.
 - adb comes from Google platform-tools in `~/Android/platform-tools` (no sudo needed).
+
+## Apps for reading and video
+- Hardware video decoders: H.264 and VP8 only (`OMX.sprd.*`). VP9 and HEVC are software-only, so YouTube's default VP9 stutters above roughly 480p.
+- **NewPipe** (F-Droid 0.29.3, installed with `adb install`, hash checked against F-Droid's index-v2). Default format MPEG-4 (H.264), default resolution 720p. Verified on Big Buck Bunny: `OMX.sprd.h264.decoder`, NewPipe at about 21 % CPU, no dropped frames logged.
+- **RedReader** (F-Droid 1.27) for Reddit: a native client, light on RAM. Its login page runs in the system WebView.
+- The system WebView provider is Chrome (`webview_provider=com.android.chrome`); the standalone WebView 64 is disabled. Updating Chrome therefore updates WebView for every app. Chrome 119 is the last version for Android 7.
+- Play Store needs the Google account re-authenticated before it will update anything.
