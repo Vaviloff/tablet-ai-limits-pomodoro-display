@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0f12">
+<link rel="manifest" href="manifest.json">
+<title>Limits + Pomodoro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: #0e0f12; color: #e8e6e1;
+    font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { display: -webkit-flex; display: flex; height: 100%; padding: 2.2vh 2vw; }
+  .limits { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex;
+            -webkit-flex-direction: column; flex-direction: column; margin-right: 2vw; }
+  .pomo { -webkit-flex: 1 1 0; flex: 1 1 0; }
+
+  .card { -webkit-flex: 1 1 0; flex: 1 1 0; background: #17191e; border-radius: 1.6vh;
+          padding: 2.4vh 2.4vw; display: -webkit-flex; display: flex;
+          -webkit-flex-direction: column; flex-direction: column; -webkit-justify-content: center; justify-content: center; }
+  .card + .card { margin-top: 2.2vh; }
+  .head { display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline; margin-bottom: 1.4vh; }
+  .name { font-size: 4.6vh; font-weight: 700; letter-spacing: .02em; }
+  .plan { font-size: 2.6vh; color: #8a8d96; margin-left: 1.2vw; text-transform: uppercase; letter-spacing: .08em; }
+  .err { margin-left: auto; font-size: 2.4vh; color: #e0a33a; }
+  .row { margin-top: 1.6vh; }
+  .row-top { display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline; }
+  .label { font-size: 3.2vh; color: #d2d0ca; width: 9vw; }
+  .pct { font-size: 5.4vh; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pct small { font-size: 2.6vh; font-weight: 400; color: #8a8d96; margin-left: .4vw; }
+  .reset { margin-left: auto; font-size: 2.8vh; color: #b5b3ad; font-variant-numeric: tabular-nums; }
+  .bar { position: relative; height: 1.8vh; background: #262931; border-radius: 1vh; margin-top: .9vh; overflow: hidden; }
+  .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 1vh; background: #4caf7d; -webkit-transition: width .6s; transition: width .6s; }
+  .fill.mid { background: #e0a33a; }
+  .fill.low { background: #e05a4f; }
+  /* where "left" would sit if usage tracked elapsed time evenly */
+  .pace { position: absolute; top: -.3vh; bottom: -.3vh; width: .35vw; min-width: 2px; background: #e8e6e1; opacity: .55; }
+
+  .pomo { background: #17191e; border-radius: 1.6vh; display: -webkit-flex; display: flex;
+          -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center;
+          -webkit-justify-content: center; justify-content: center; position: relative; }
+  .phase { font-size: 4vh; letter-spacing: .14em; text-transform: uppercase; color: #8a8d96; }
+  .pomo.work .phase { color: #e05a4f; }
+  .pomo.break .phase { color: #4caf7d; }
+  .clock { font-size: 22vh; font-weight: 300; line-height: 1.05; font-variant-numeric: tabular-nums; margin: 1vh 0; }
+  .pomo.paused .clock { opacity: .45; }
+  .dots { font-size: 3.4vh; letter-spacing: .5vw; color: #8a8d96; }
+  .dots b { color: #e05a4f; font-weight: 400; }
+  .hint { position: absolute; bottom: 2vh; font-size: 2.2vh; color: #5d606a; }
+  .btns { margin-top: 4vh; }
+  .btn { display: inline-block; font-size: 4vh; color: #e8e6e1; background: #262931; border: 1px solid #3a3e48;
+         border-radius: 1.4vh; padding: 2vh 3.4vw; margin: 0 1vw; min-width: 16vw; text-align: center; }
+  .btn:active { background: #33363f; }
+
+  .flash { -webkit-animation: flash 1s 6; animation: flash 1s 6; }
+  @-webkit-keyframes flash { 50% { background: #3a2a22; } }
+  @keyframes flash { 50% { background: #3a2a22; } }
+
+  .stale { position: fixed; top: 1vh; right: 1vw; font-size: 2.2vh; color: #0e0f12; background: #e0a33a;
+           padding: .4vh .8vw; border-radius: .6vh; display: none; }
+  #dim { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: #000; opacity: 0; pointer-events: none;
+         -webkit-transition: opacity 2s; transition: opacity 2s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="limits">
+    <div class="card" id="claude">
+      <div class="head"><span class="name">Claude</span><span class="plan"></span><span class="err"></span></div>
+      <div class="row" data-k="five_hour"><div class="row-top"><span class="label">5 h</span><span class="pct"></span><span class="reset"></span></div><div class="bar"><div class="fill"></div><div class="pace"></div></div></div>
+      <div class="row" data-k="weekly"><div class="row-top"><span class="label">week</span><span class="pct"></span><span class="reset"></span></div><div class="bar"><div class="fill"></div><div class="pace"></div></div></div>
+    </div>
+    <div class="card" id="codex">
+      <div class="head"><span class="name">Codex</span><span class="plan"></span><span class="err"></span></div>
+      <div class="row" data-k="five_hour"><div class="row-top"><span class="label">5 h</span><span class="pct"></span><span class="reset"></span></div><div class="bar"><div class="fill"></div><div class="pace"></div></div></div>
+      <div class="row" data-k="weekly"><div class="row-top"><span class="label">week</span><span class="pct"></span><span class="reset"></span></div><div class="bar"><div class="fill"></div><div class="pace"></div></div></div>
+    </div>
+  </div>
+  <div class="pomo paused work" id="pomo">
+    <div class="phase" id="phase">Focus</div>
+    <div class="clock" id="clock">25:00</div>
+    <div class="dots" id="dots"></div>
+    <div class="btns"><span class="btn" id="skip">skip</span><span class="btn" id="reset">reset</span></div>
+    <div class="hint">tap to start / pause</div>
+  </div>
+</div>
+<div class="stale" id="stale">offline</div>
+<div id="dim"></div>
+<script>
+(function () {
+  'use strict';
+
+  // ---- limits ----
+  var POLL_MS = 60 * 1000;
+  var clockOffset = 0; // server time minus tablet time; the tablet clock may drift
+  var last = null;
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function now() { return Date.now() + clockOffset; }
+
+  function fmtLeft(ms) {
+    if (ms <= 0) return 'resetting';
+    var m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+    m = m % 60;
+    if (d > 0) return 'resets in ' + d + 'd ' + h + 'h';
+    if (h > 0) return 'resets in ' + h + 'h ' + (m < 10 ? '0' : '') + m + 'm';
+    return 'resets in ' + m + 'm';
+  }
+
+  function renderRow(row, w) {
+    var pct = $('.pct', row), fill = $('.fill', row), pace = $('.pace', row), reset = $('.reset', row);
+    if (!w) { pct.innerHTML = '&mdash;'; reset.textContent = ''; fill.style.width = '0'; pace.style.display = 'none'; return; }
+    var left = Math.max(0, Math.min(100, 100 - w.used));
+    pct.innerHTML = left + '%<small>left</small>';
+    fill.style.width = left + '%';
+    fill.className = 'fill' + (left < 20 ? ' low' : left < 50 ? ' mid' : '');
+    var remain = w.resets_at - now();
+    reset.textContent = fmtLeft(remain);
+    var winMs = w.window_min * 60000;
+    pace.style.display = winMs ? '' : 'none';
+    if (winMs) pace.style.left = Math.max(0, Math.min(100, remain / winMs * 100)) + '%';
+  }
+
+  function renderCard(id, p) {
+    var card = document.getElementById(id);
+    var data = p && p.data;
+    $('.plan', card).textContent = data && data.plan ? data.plan : '';
+    $('.err', card).textContent = p && p.error ? (data ? 'stale' : 'unavailable') : '';
+    var rows = card.querySelectorAll('.row');
+    for (var i = 0; i < rows.length; i++) renderRow(rows[i], data ? data[rows[i].getAttribute('data-k')] : null);
+  }
+
+  function render() {
+    if (!last) return;
+    renderCard('claude', last.claude);
+    renderCard('codex', last.codex);
+  }
+
+  function poll() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/limits', true);
+    xhr.timeout = 30000;
+    xhr.onload = function () {
+      if (xhr.status !== 200) return offline();
+      try { last = JSON.parse(xhr.responseText); } catch (e) { return offline(); }
+      clockOffset = last.now - Date.now();
+      document.getElementById('stale').style.display = 'none';
+      render();
+    };
+    xhr.onerror = xhr.ontimeout = offline;
+    xhr.send();
+  }
+  function offline() { document.getElementById('stale').style.display = 'block'; }
+
+  poll();
+  setInterval(poll, POLL_MS);
+  setInterval(render, 15000);
+
+  // ---- pomodoro ----
+  var WORK = 25 * 60, SHORT = 5 * 60, LONG = 15 * 60, LONG_EVERY = 4;
+  var KEY = 'pomo.v1';
+  if (/[?&]fast\b/.test(location.search)) { WORK = 6; SHORT = 4; LONG = 5; KEY = 'pomo.fast'; } // testing
+  // phase: 'work' | 'short' | 'long'; endAt set while running, rest (sec) while paused
+  var P = load() || { phase: 'work', done: 0, endAt: null, rest: WORK };
+
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} }
+  function dur(phase) { return phase === 'work' ? WORK : phase === 'long' ? LONG : SHORT; }
+  function remaining() { return P.endAt ? Math.max(0, Math.round((P.endAt - Date.now()) / 1000)) : P.rest; }
+
+  var el = document.getElementById('pomo');
+
+  function draw() {
+    var s = remaining();
+    var mm = Math.floor(s / 60), ss = s % 60;
+    document.getElementById('clock').textContent = (mm < 10 ? '0' : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
+    document.getElementById('phase').textContent = P.phase === 'work' ? 'Focus' : P.phase === 'long' ? 'Long break' : 'Break';
+    el.className = 'pomo ' + (P.phase === 'work' ? 'work' : 'break') + (P.endAt ? '' : ' paused');
+    var n = P.done % LONG_EVERY, dots = '';
+    for (var i = 0; i < LONG_EVERY; i++) dots += i < n ? '<b>&#9679;</b>' : '&#9675;';
+    document.getElementById('dots').innerHTML = dots + ' &nbsp;' + P.done + ' today';
+    document.title = (P.endAt ? '' : '❚❚ ') + document.getElementById('clock').textContent;
+  }
+
+  function next(auto) {
+    if (P.phase === 'work') {
+      if (auto) P.done++;
+      P.phase = P.done > 0 && P.done % LONG_EVERY === 0 ? 'long' : 'short';
+    } else {
+      P.phase = 'work';
+    }
+    P.rest = dur(P.phase);
+    // breaks start on their own; focus waits for a tap
+    P.endAt = auto && P.phase !== 'work' ? Date.now() + P.rest * 1000 : null;
+    save();
+    draw();
+  }
+
+  function toggle() {
+    if (P.endAt) { P.rest = remaining(); P.endAt = null; }
+    else { P.endAt = Date.now() + remaining() * 1000; }
+    unlockAudio();
+    save();
+    draw();
+  }
+
+  // Web Audio needs a user gesture before it may play on Android
+  var ctx = null;
+  function unlockAudio() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!ctx && AC) ctx = new AC();
+    if (ctx && ctx.state === 'suspended' && ctx.resume) ctx.resume();
+  }
+  function beep() {
+    if (!ctx) return;
+    for (var i = 0; i < 3; i++) {
+      var t = ctx.currentTime + i * 0.45, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = P.phase === 'work' ? 660 : 880;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + 0.4);
+    }
+  }
+
+  function tick() {
+    if (P.endAt && remaining() === 0) {
+      next(true);
+      beep();
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    }
+    draw();
+  }
+
+  // reset the daily counter on a new day
+  var today = new Date().toDateString();
+  if (P.day !== today) { P.day = today; P.done = 0; save(); }
+
+  el.addEventListener('click', function (e) {
+    if (e.target.id === 'skip') { unlockAudio(); next(false); return; }
+    if (e.target.id === 'reset') { P = { phase: 'work', done: P.done, day: P.day, endAt: null, rest: WORK }; save(); draw(); return; }
+    toggle();
+  });
+
+  draw();
+  setInterval(tick, 1000);
+
+  // ---- night dim (23:00 to 07:00) ----
+  function dim() {
+    var h = new Date().getHours();
+    document.getElementById('dim').style.opacity = h >= 23 || h < 7 ? '0.6' : '0';
+  }
+  dim();
+  setInterval(dim, 60000);
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+})();
+</script>
+</body>
+</html>
