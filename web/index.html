@@ -19,6 +19,8 @@
   .wrap { display: -webkit-flex; display: flex; height: 100%; padding: 2.2vh 2vw; }
   .limits { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex;
             -webkit-flex-direction: column; flex-direction: column; margin-right: 2vw; }
+  .right { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex;
+           -webkit-flex-direction: column; flex-direction: column; }
   .pomo { -webkit-flex: 1 1 0; flex: 1 1 0; }
 
   .card { -webkit-flex: 1 1 0; flex: 1 1 0; background: #17191e; border-radius: 1.6vh;
@@ -41,6 +43,13 @@
   .fill.low { background: #e05a4f; }
   /* where "left" would sit if usage tracked elapsed time evenly */
   .pace { position: absolute; top: -.3vh; bottom: -.3vh; width: .35vw; min-width: 2px; background: #e8e6e1; opacity: .55; }
+
+  .now { background: #141519; border-radius: 1.6vh; margin-bottom: 2.2vh; padding: 1.6vh 2.4vw;
+         display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
+         color: #6b6e78; }
+  .now .time { font-size: 7vh; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .now .temp { margin-left: auto; font-size: 5vh; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .now .place { font-size: 2.6vh; margin-left: 1vw; letter-spacing: .06em; }
 
   .pomo { background: #17191e; border-radius: 1.6vh; display: -webkit-flex; display: flex;
           -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center;
@@ -82,12 +91,15 @@
       <div class="row" data-k="weekly"><div class="row-top"><span class="label">week</span><span class="pct"></span><span class="reset"></span></div><div class="bar"><div class="fill"></div><div class="pace"></div></div></div>
     </div>
   </div>
+  <div class="right">
+  <div class="now"><span class="time" id="time"></span><span class="temp" id="temp">&mdash;</span><span class="place" id="place"></span></div>
   <div class="pomo paused work" id="pomo">
     <div class="phase" id="phase">Focus</div>
     <div class="clock" id="clock">25:00</div>
     <div class="dots" id="dots"></div>
     <div class="btns"><span class="btn" id="skip">skip</span><span class="btn" id="reset">reset</span></div>
     <div class="hint">tap to start / pause</div>
+  </div>
   </div>
 </div>
 <div class="stale" id="stale">offline</div>
@@ -145,6 +157,12 @@
     if (!last) return;
     renderCard('claude', last.claude);
     renderCard('codex', last.codex);
+    var w = last.weather && last.weather.data;
+    if (w) {
+      var t = Math.round(w.temp_c);
+      document.getElementById('temp').textContent = (t < 0 ? '\u2212' + (-t) : t) + '\u00b0C';
+      document.getElementById('place').textContent = w.place;
+    }
   }
 
   function poll() {
@@ -162,6 +180,13 @@
     xhr.send();
   }
   function offline() { document.getElementById('stale').style.display = 'block'; }
+
+  function clock() {
+    var d = new Date(now()), h = d.getHours(), m = d.getMinutes();
+    document.getElementById('time').textContent = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  clock();
+  setInterval(clock, 1000);
 
   poll();
   setInterval(poll, POLL_MS);
@@ -264,6 +289,16 @@
   }
   dim();
   setInterval(dim, 60000);
+
+  // Keep the screen on while the dashboard is visible, also on battery. The lock is
+  // released whenever the page is hidden, so it has to be re-acquired on return.
+  function wake() {
+    if (navigator.wakeLock && document.visibilityState === 'visible') {
+      navigator.wakeLock.request('screen').catch(function () {});
+    }
+  }
+  wake();
+  document.addEventListener('visibilitychange', wake);
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 })();
