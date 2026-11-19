@@ -48,8 +48,7 @@
          display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
          color: #6b6e78; }
   .now .time { font-size: 7vh; font-weight: 300; font-variant-numeric: tabular-nums; }
-  .now .temp { margin-left: auto; font-size: 5vh; font-weight: 300; font-variant-numeric: tabular-nums; }
-  .now .place { font-size: 2.6vh; margin-left: 1vw; letter-spacing: .06em; }
+  .now .temp { margin-left: auto; font-size: 7vh; font-weight: 300; font-variant-numeric: tabular-nums; }
 
   .pomo { background: #17191e; border-radius: 1.6vh; display: -webkit-flex; display: flex;
           -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center;
@@ -92,7 +91,7 @@
     </div>
   </div>
   <div class="right">
-  <div class="now"><span class="time" id="time"></span><span class="temp" id="temp">&mdash;</span><span class="place" id="place"></span></div>
+  <div class="now"><span class="time" id="time"></span><span class="temp" id="temp">&mdash;</span></div>
   <div class="pomo paused work" id="pomo">
     <div class="phase" id="phase">Focus</div>
     <div class="clock" id="clock">25:00</div>
@@ -161,7 +160,6 @@
     if (w) {
       var t = Math.round(w.temp_c);
       document.getElementById('temp').textContent = (t < 0 ? '\u2212' + (-t) : t) + '\u00b0C';
-      document.getElementById('place').textContent = w.place;
     }
   }
 

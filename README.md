@@ -170,7 +170,7 @@ itself between 23:00 and 07:00.
   a fill shorter than the tick means you're spending faster than the window passes.
   An `offline` badge means the tablet can't reach the server. A `stale` label on a card
   means that provider's last refresh failed and the last good numbers are shown.
-- **Clock and temperature** above the timer. The temperature comes from Open-Meteo (no API key), fetched by the server every 10 minutes. The location defaults to Bishkek; change it with `WEATHER_LAT`, `WEATHER_LON` and `WEATHER_PLACE` (in `compose.yaml` under `environment:` for Docker).
+- **Clock and temperature** above the timer. The temperature comes from Open-Meteo (no API key), fetched by the server every 10 minutes. The location defaults to Bishkek; change it with `WEATHER_LAT` and `WEATHER_LON` (in `compose.yaml` under `environment:` for Docker).
 - **Screen stays on** while the dashboard is in front, on battery too, through the Screen Wake Lock API (Chrome 84+, secure context). Other apps keep the normal screen timeout.
 - **Pomodoro**: 25 min focus, 5 min break, 15 min long break every 4 rounds. Tap the panel
   to start or pause, use *skip* / *reset*. It beeps and flashes at phase end; breaks start on their own,

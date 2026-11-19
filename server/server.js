@@ -141,7 +141,6 @@ function fetchCodex() {
 // Current temperature from Open-Meteo (no API key). Defaults to Bishkek.
 const WEATHER_LAT = process.env.WEATHER_LAT || '42.87';
 const WEATHER_LON = process.env.WEATHER_LON || '74.59';
-const WEATHER_PLACE = process.env.WEATHER_PLACE || 'Bishkek';
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
 let weatherCache = null;
 
@@ -152,7 +151,7 @@ async function fetchWeather() {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error('Open-Meteo HTTP ' + res.status);
   const d = await res.json();
-  const data = { place: WEATHER_PLACE, temp_c: d.current.temperature_2m };
+  const data = { temp_c: d.current.temperature_2m };
   weatherCache = { at: Date.now(), data };
   return data;
 }
