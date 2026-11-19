@@ -40,3 +40,9 @@ disable   com.swiftkey.swiftkeyconfigurator
 # --- Huawei telemetry / log collectors (system uid, resident) ---
 disable   com.huawei.imonitor                         # log collection, ~14 MB resident
 disable   com.huawei.android.cochr                    # CHR call/network logging, persistent ~7 MB
+
+# --- Second pass: unused on a Wi-Fi dashboard/RSS tablet ---
+disable   com.android.mms                             # Messaging, 17.5 MB, starts on boot (com.android.mms.service stays)
+disable   com.huawei.hwid                             # Huawei ID push service; Themes and Huawei account features need it
+disable   com.android.calendar                        # Calendar app (calendar provider stays)
+disable   com.google.android.syncadapters.calendar    # Google Calendar sync, useless without the app
