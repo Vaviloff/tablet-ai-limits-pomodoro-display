@@ -1,0 +1,13 @@
+services:
+  tablet-dash:
+    build: .
+    image: tablet-dash:local
+    restart: unless-stopped
+    ports:
+      # set BIND_IP in .env to the LAN address the tablet should use
+      - "${BIND_IP:-127.0.0.1}:${PORT:-8787}:8787"
+    volumes:
+      - data:/data
+
+volumes:
+  data:
