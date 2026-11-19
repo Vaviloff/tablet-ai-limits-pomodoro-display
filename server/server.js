@@ -12,7 +12,13 @@ const PORT = Number(process.env.PORT) || 8787;
 const HOST = process.env.HOST || '127.0.0.1';
 const WEB_DIR = path.join(__dirname, '..', 'web');
 const CACHE_MS = 60 * 1000;
-const CLAUDE_CREDS = path.join(os.homedir(), '.claude', '.credentials.json');
+const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const CLAUDE_CREDS = path.join(CLAUDE_DIR, '.credentials.json');
+// Refreshing rotates the refresh token, which logs out any other Claude Code using the same
+// credentials file. Only enable it for a login dedicated to this server (the Docker image does).
+const CLAUDE_REFRESH = process.env.CLAUDE_REFRESH === '1';
+const CLAUDE_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
+const CLAUDE_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'; // Claude Code's OAuth client
 const CODEX_BIN = process.env.CODEX_BIN || 'codex';
 
 const MIME = {
@@ -29,11 +35,40 @@ function win(used, resetsAtMs, windowMin) {
   return { used: Math.round(used), resets_at: resetsAtMs, window_min: windowMin };
 }
 
+async function refreshClaude(file, creds) {
+  const res = await fetch(CLAUDE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      refresh_token: creds.refreshToken,
+      client_id: CLAUDE_CLIENT_ID,
+      scope: (creds.scopes || []).join(' '),
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error('Claude token refresh HTTP ' + res.status);
+  const t = await res.json();
+  const next = Object.assign({}, creds, {
+    accessToken: t.access_token,
+    refreshToken: t.refresh_token || creds.refreshToken,
+    expiresAt: Date.now() + t.expires_in * 1000,
+  });
+  if (t.scope) next.scopes = t.scope.split(' ');
+  file.claudeAiOauth = next;
+  // write-then-rename so a crash never leaves a half-written credentials file
+  fs.writeFileSync(CLAUDE_CREDS + '.tmp', JSON.stringify(file), { mode: 0o600 });
+  fs.renameSync(CLAUDE_CREDS + '.tmp', CLAUDE_CREDS);
+  return next;
+}
+
 async function fetchClaude() {
-  const creds = JSON.parse(fs.readFileSync(CLAUDE_CREDS, 'utf8')).claudeAiOauth;
+  const file = JSON.parse(fs.readFileSync(CLAUDE_CREDS, 'utf8'));
+  let creds = file.claudeAiOauth;
   if (!creds || !creds.accessToken) throw new Error('no Claude OAuth token');
-  if (creds.expiresAt && creds.expiresAt < Date.now()) {
-    throw new Error('Claude token expired, run claude once to refresh');
+  if (creds.expiresAt && creds.expiresAt < Date.now() + 5 * 60 * 1000) {
+    if (!CLAUDE_REFRESH) throw new Error('Claude token expired, run claude once to refresh');
+    creds = await refreshClaude(file, creds);
   }
   const res = await fetch('https://api.anthropic.com/api/oauth/usage', {
     headers: {
