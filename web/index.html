@@ -101,6 +101,11 @@
   var clockOffset = 0; // server time minus tablet time; the tablet clock may drift
   var last = null;
 
+  // Chrome 80's fullscreen web app sizes 100% as if its 56dp toolbar were shown; use the real height
+  function fit() { document.body.style.height = window.innerHeight + 'px'; }
+  fit();
+  window.addEventListener('resize', fit);
+
   function $(sel, root) { return (root || document).querySelector(sel); }
   function now() { return Date.now() + clockOffset; }
 
