@@ -4,31 +4,90 @@ Turns an old Android tablet into an always-on desk display showing how much of
 your **Claude Code** and **Codex** usage limits is left (5-hour window and week),
 next to a **Pomodoro** timer.
 
+There are two ways to run it:
+
 ```
-tablet (Chrome, fullscreen)  ──USB──  PC: adb reverse tcp:8787 → server/server.js
-                                          ├─ Claude: api.anthropic.com/api/oauth/usage
-                                          └─ Codex:  codex app-server (account/rateLimits/read)
+A) Docker on an always-on box (NAS), tablet on Wi-Fi
+   tablet (Chrome, fullscreen) ──Wi-Fi──▶ http://<nas-ip>:8787 ─ container: server/server.js
+                                                                 ├─ Claude: api.anthropic.com/api/oauth/usage
+                                                                 └─ Codex:  codex app-server
+
+B) Your desktop, tablet on USB
+   tablet (Chrome, fullscreen) ──USB──▶ adb reverse tcp:8787 ─ desktop: server/server.js (systemd)
 ```
 
-The tablet only renders a page. All credentials stay on the PC, and the server listens on
-`127.0.0.1` only. The tablet reaches it through `adb reverse` over the USB cable,
-which also keeps it charged.
+The tablet only renders a page; the server returns usage percentages, never tokens.
+**A** is the setup in use: the numbers keep updating when the desktop is off, and the
+tablet only needs a charger. **B** keeps all logins on the desktop and never listens on
+the network.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `server/server.js` | Node server (no dependencies): serves `web/` and `GET /api/limits` (cached 60 s) |
+| `Dockerfile`, `compose.yaml` | Container for setup A: server plus the `codex` and `claude` CLIs, logins in the `data` volume |
 | `web/` | The page (ES5, works on Chrome 80 / Android 7), manifest, icons, service worker |
 | `scripts/install-services.sh` | Installs the two systemd user services for this checkout |
 | `scripts/setup-tablet.sh` | One-off tablet setup: reverse port, keep screen on, landscape, open page |
 | `scripts/adb-keeper.sh` | Loop run by `tablet-adb.service`; re-applies the reverse port when adb drops it |
+| `scripts/debloat/` | Reversible removal of Huawei/Google bloat on the tablet (`apply.sh` / `restore.sh`) |
 | `NOTES.md` | Facts about the Huawei MediaPad T3 7 this was built for, and why it wasn't reflashed |
 
-## Setting up the server on another machine
+## A) Docker on a NAS, tablet on Wi-Fi
 
-The server must run on the machine where you use Claude Code and Codex, because it
-reads their logins. That machine needs Linux with systemd. On macOS, Claude Code
+Needs Docker with Compose v2 on an x86-64 or arm64 Linux host. Pick a LAN address the
+tablet can reach; a fixed IP or a DHCP reservation keeps it stable.
+
+### 1. Start the container
+
+```sh
+git clone https://github.com/Vaviloff/tablet-ai-limits-pomodoro-display.git tablet-dash
+cd tablet-dash
+echo "BIND_IP=192.168.0.101" > .env      # the host's LAN IP; the default 127.0.0.1 is unreachable from the tablet
+docker compose up -d --build
+```
+
+Only `BIND_IP:8787` is published. Don't forward it from the router.
+
+### 2. Log in once, inside the container
+
+The container keeps **its own** Claude Code and Codex logins in the `data` volume
+(`/data/claude`, `/data/codex`). Don't mount your existing `~/.claude` or `~/.codex`.
+Both services rotate refresh tokens, so two clients sharing one login keep logging each other out.
+Limits are per account, so a separate login shows the same numbers.
+
+```sh
+docker compose exec tablet-dash codex login --device-auth   # open the URL, enter the code
+docker compose exec tablet-dash claude auth login           # open the URL, paste the code back
+curl -s <BIND_IP>:8787/api/limits                           # both "error": null
+```
+
+If Codex says device login is disabled, turn on device code authorization in ChatGPT's
+security settings and retry.
+
+Nothing runs `claude` interactively in the container, so the server refreshes that Claude
+token itself (`CLAUDE_REFRESH=1` in the image) and writes it back to `/data/claude`.
+Codex refreshes its own token.
+
+To update: `git pull && docker compose up -d --build`. Logins survive because they're in the volume.
+
+### 3. Point the tablet at it
+
+1. **Treat the address as secure.** Chrome only installs a fullscreen web app from
+   HTTPS or `localhost`. In Chrome open `chrome://flags`, search *Insecure origins treated as
+   secure*, enter `http://<BIND_IP>:8787`, set it to *Enabled* and tap *Relaunch*.
+   Serving it through an HTTPS reverse proxy is the alternative, but Android 7.0 lacks
+   the current Let's Encrypt roots (ISRG Root X1/X2), so Chrome 80 rejects those certificates.
+2. Open `http://<BIND_IP>:8787`, then in the menu tap **Add to Home screen**, and launch the icon.
+3. Keep the screen on while it's charging from any source:
+   `adb shell settings put global stay_on_while_plugged_in 7`. In the same session,
+   lock landscape with `adb shell settings put system accelerometer_rotation 0` and
+   `adb shell settings put system user_rotation 1`.
+
+## B) Your desktop, tablet on USB
+
+Here the server reads the desktop's own Claude Code and Codex logins. That machine needs Linux with systemd. On macOS, Claude Code
 keeps its token in the Keychain rather than in `~/.claude/.credentials.json`, so the
 server can't read it there without code changes.
 
@@ -102,9 +161,8 @@ itself between 23:00 and 07:00.
   `adb tcpip 5555`, then unplug and run `adb connect <tablet-ip>:5555`. The reverse port works over it.
   The tablet forgets this on reboot.
 - **Plain LAN**: start the server with `HOST=0.0.0.0` and open `http://<pc-ip>:8787`.
-  This has two downsides. Anyone on the network can read your usage numbers (no tokens
-  are exposed). And because the page isn't on `localhost`, it's not a secure context, so
-  Chrome won't install it as a fullscreen web app.
+  Anyone on the network can then read your usage numbers (no tokens are exposed). For
+  fullscreen, set up the Chrome flag described in setup A, step 3.
 
 ## Using it
 
@@ -120,7 +178,7 @@ itself between 23:00 and 07:00.
 
 | Symptom | Fix |
 |---|---|
-| Claude card `stale` / `unavailable` | The OAuth token in `~/.claude/.credentials.json` expired. Run `claude` once and it refreshes the token. |
-| Codex card `stale` | Run `codex login`; check that `codex app-server` starts from the service's PATH (re-run the installer after switching Node versions). |
+| Claude card `stale` / `unavailable` | Docker: check `docker compose logs`; if the refresh failed, run `claude auth login` in the container again. Desktop: the token in `~/.claude/.credentials.json` expired; run `claude` once to refresh it. |
+| Codex card `stale` | Run `codex login` (in the container for Docker); check that `codex app-server` starts from the service's PATH (re-run the installer after switching Node versions). |
 | `offline` badge | `systemctl --user status tablet-dash tablet-adb`, then `adb devices`, then `adb reverse --list`. |
 | `adb devices` shows `no permissions` | Add a udev rule for the tablet's USB vendor ID, e.g. `SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", MODE="0660", TAG+="uaccess"` in `/etc/udev/rules.d/51-android.rules`. |

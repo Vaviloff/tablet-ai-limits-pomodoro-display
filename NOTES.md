@@ -15,6 +15,15 @@
 - Cheap, reversible alternative: debloat with `pm uninstall --user 0 <pkg>` (undo with `cmd package install-existing <pkg>`) and set animations to 0. The setup script already sets animations to 0.
 
 ## Dashboard
+
+### Current setup (since 2026-11-19)
+- The server runs in Docker on the NAS (`storage`, 192.168.0.101) from `~/programs/tablet-dash`, published on `192.168.0.101:8787` (`.env`: `BIND_IP`). It has its own Claude Code and Codex logins in the compose `data` volume.
+- The tablet reaches it over Wi-Fi at `http://192.168.0.101:8787`. Chrome flag *Insecure origins treated as secure* lists that origin, so the home-screen web app runs fullscreen.
+- HTTPS through the NAS's Nginx Proxy Manager (`*.000255.xyz`) isn't used: that certificate chains to ISRG Root X2, which Android 7.0 doesn't trust.
+- The tablet stays on while charging from any source (`stay_on_while_plugged_in=7`).
+- The desktop units `tablet-dash` and `tablet-adb` are disabled. The notes below describe the USB setup they implemented.
+
+### USB setup (desktop, now disabled)
 - `server/server.js` is a Node server on 127.0.0.1:8787. It serves `web/` and `/api/limits`, with a 60 s cache.
   - Claude: `GET api.anthropic.com/api/oauth/usage` with the token from `~/.claude/.credentials.json`, reading `five_hour`/`seven_day` utilization and `resets_at`. The token is refreshed by Claude Code itself, so if `claude` isn't run for a long time the card goes "stale".
   - Codex: `codex app-server` JSON-RPC `account/rateLimits/read`, reading `primary` (5 h) and `secondary` (week) `usedPercent`/`resetsAt`.
